@@ -9,7 +9,7 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 
 load_dotenv()
 
-redis = Redis(host='localhost', port=6379, db=0)
+redis_db = Redis(host='localhost', port=6379, db=0)
 geolocator = geopy.geocoders.Nominatim(user_agent="weather_bot")
 
 BOT_TOKEN = os.getenv('BOT_TOKEN')
@@ -30,7 +30,7 @@ def help_callback(update, context):
     update.message.reply_text('Напиши название города для получения погоды.')
 
 
-def get_weather(update, context):
+def get_weather(update, context, redis=redis_db):
     city = update.message.text
     if redis.exists(city):
         weather = redis.get(city)
@@ -46,7 +46,7 @@ def get_weather(update, context):
             update.message.reply_text(
                 f'Информация о погоде для города "{city}" отсутствует.')
             return
-        save_weather(city, json.dumps(weather, ensure_ascii=False))
+        save_weather(city, json.dumps(weather, ensure_ascii=False), redis)
         update.message.reply_text(WEATHER_MESSAGE.format(**weather))
 
 
@@ -58,7 +58,7 @@ def request_weather(latitude, longitude):
     ).json().get('fact')
 
 
-def save_weather(city, weather, expire_time=1800):
+def save_weather(city, weather, redis, expire_time=1800):
     redis.set(city, weather)
     redis.expire(city, expire_time)
 
